@@ -1,6 +1,7 @@
 package leader1
 
 import (
+	"encoding/json"
 	"log"
 	"net/url"
 	"strings"
@@ -17,6 +18,16 @@ type Bot struct {
 	Keywords         []string
 
 	OnStartup func(*Bot)
+	OnFollow  func(*Bot, *anaconda.User)
+	OnTweet   func(*Bot, *anaconda.Tweet)
+	OnMessage func(*Bot, *anaconda.DirectMessage)
+}
+
+type StreamEvent struct {
+	Friends       []int64
+	Event         string
+	Source        *anaconda.User
+	DirectMessage *anaconda.DirectMessage `json:"direct_message"`
 }
 
 func NewBot(consumerKey string, consumerSecret string, accessKey string, accessSecret string) *Bot {
@@ -59,11 +70,59 @@ func (b *Bot) Start() {
 	defer ts.Close()
 	// Loop until stream has a permanent error.
 	for ts.Err() == nil {
-		var t interface{}
-		if err := ts.UnmarshalNext(&t); err != nil {
-			log.Fatal(err)
+		item, err := ts.Next()
+		if err != nil {
+			log.Print(err)
+			continue
 		}
-		log.Print(t)
+
+		// var debug interface{}
+		// err = json.Unmarshal(item, &debug)
+		// if err == nil {
+		// 	log.Print("DEBUG: ", debug)
+		// }
+
+		se := &StreamEvent{}
+		err = json.Unmarshal(item, se)
+		if err == nil {
+			if se.Friends != nil {
+				log.Print("friends update")
+				continue
+			}
+			if se.DirectMessage != nil {
+				if b.OnMessage != nil {
+					b.OnMessage(b, se.DirectMessage)
+				}
+				continue
+			}
+			if se.Event != "" {
+				if se.Event == "follow" {
+					if b.OnFollow != nil {
+						b.OnFollow(b, se.Source)
+					}
+					continue
+				}
+			}
+			log.Print("unhandled stream event: ", se)
+			continue
+		}
+
+		t := &anaconda.Tweet{}
+		err = json.Unmarshal(item, t)
+		if err == nil {
+			if b.OnTweet != nil {
+				b.OnTweet(b, t)
+			}
+			continue
+		}
+
+		var u interface{}
+		err = json.Unmarshal(item, &u)
+		if err != nil {
+			log.Print("WARNING!!! Error unmarshalling object in stream: ", err)
+			continue
+		}
+		log.Print("WARNING!!! Unhandled object in stream: ", u)
 	}
 	log.Print(ts.Err)
 }
