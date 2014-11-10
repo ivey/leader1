@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 
-	"github.com/ChimeraCoder/anaconda"
 	"github.com/ivey/leader1"
 
 	"fmt"
@@ -22,15 +21,15 @@ func main() {
 		fmt.Println("TODO: implement tweet storage")
 	}
 
-	iveybot.OnTweet = func(b *leader1.Bot, t *anaconda.Tweet) {
+	iveybot.OnTweet = func(b *leader1.Bot, t *leader1.Tweet) {
 		fmt.Println("TWEEEET: ", t.Text)
 	}
 
-	iveybot.OnFollow = func(b *leader1.Bot, u *anaconda.User) {
+	iveybot.OnFollow = func(b *leader1.Bot, u *leader1.User) {
 		fmt.Println("FOLLOWED BY: ", u.ScreenName)
 	}
 
-	iveybot.OnMessage = func(b *leader1.Bot, m *anaconda.DirectMessage) {
+	iveybot.OnMessage = func(b *leader1.Bot, m *leader1.DirectMessage) {
 		if m.Sender.ScreenName == "ivey" {
 			// // if tweet Foo
 			// makeTweet(b, m.Text)

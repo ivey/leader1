@@ -18,9 +18,21 @@ type Bot struct {
 	Keywords         []string
 
 	OnStartup func(*Bot)
-	OnFollow  func(*Bot, *anaconda.User)
-	OnTweet   func(*Bot, *anaconda.Tweet)
-	OnMessage func(*Bot, *anaconda.DirectMessage)
+	OnFollow  func(*Bot, *User)
+	OnTweet   func(*Bot, *Tweet)
+	OnMessage func(*Bot, *DirectMessage)
+}
+
+type Tweet struct {
+	*anaconda.Tweet
+}
+
+type User struct {
+	*anaconda.User
+}
+
+type DirectMessage struct {
+	*anaconda.DirectMessage
 }
 
 type StreamEvent struct {
@@ -91,14 +103,14 @@ func (b *Bot) Start() {
 			}
 			if se.DirectMessage != nil {
 				if b.OnMessage != nil {
-					b.OnMessage(b, se.DirectMessage)
+					b.OnMessage(b, &DirectMessage{se.DirectMessage})
 				}
 				continue
 			}
 			if se.Event != "" {
 				if se.Event == "follow" {
 					if b.OnFollow != nil {
-						b.OnFollow(b, se.Source)
+						b.OnFollow(b, &User{se.Source})
 					}
 					continue
 				}
@@ -111,7 +123,7 @@ func (b *Bot) Start() {
 		err = json.Unmarshal(item, t)
 		if err == nil {
 			if b.OnTweet != nil {
-				b.OnTweet(b, t)
+				b.OnTweet(b, &Tweet{t})
 			}
 			continue
 		}
