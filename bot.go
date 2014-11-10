@@ -70,6 +70,7 @@ func (b *Bot) TrainTweetCorpus(dirname string) {
 }
 
 func (b *Bot) TrainTweetFile(filename string) {
+	log.Print("training Chain from ", filename)
 	f, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Print("WARN: unable to read tweets file: ", err)
@@ -91,6 +92,10 @@ func (b *Bot) TrainTweetFile(filename string) {
 		tweet := t.(map[string]interface{})
 		b.Chain.AddString(tweet["text"].(string))
 	}
+}
+
+func (b *Bot) TrainTweet(tweet Tweet) {
+	b.Chain.AddString(tweet.Text)
 }
 
 func (b *Bot) RandomText() string {
@@ -173,11 +178,12 @@ func (b *Bot) Start() {
 		t := &anaconda.Tweet{}
 		err = json.Unmarshal(item, t)
 		if err == nil {
+			tweet := &Tweet{t}
 			if t.User.ScreenName == b.Username {
-				b.Chain.AddString(t.Text)
+				b.Chain.AddString(tweet.Text)
 			}
 			if b.OnTweet != nil {
-				b.OnTweet(b, &Tweet{t})
+				b.OnTweet(b, tweet)
 			}
 			continue
 		}
