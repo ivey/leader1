@@ -2,15 +2,12 @@ package main
 
 import (
 	"os"
+	"strings"
 
 	"github.com/ivey/leader1"
 
 	"fmt"
 )
-
-// func makeTweet() string {
-// 	return &string{"This is a a random tweet"}
-// }
 
 func main() {
 	iveybot := leader1.NewBot("iveybot",
@@ -19,30 +16,36 @@ func main() {
 		os.Getenv("OAUTH_TOKEN"),
 		os.Getenv("OAUTH_SECRET"))
 
-	iveybot.Keywords = []string{"rocksalt"} // keywords to search for
+	iveybot.Keywords = []string{"gweezlebur"}
 
 	iveybot.OnStartup = func(b *leader1.Bot) {
 		b.TrainTweetCorpus("tweets/data/js/tweets")
 	}
 
 	iveybot.OnTweet = func(b *leader1.Bot, t *leader1.Tweet) {
-		fmt.Println("TWEEEET: ", t.Text)
+		words := strings.Fields(t.Text)
+		if words[0] == "@iveybot" {
+
+		}
 	}
 
 	iveybot.OnFollow = func(b *leader1.Bot, u *leader1.User) {
 		b.Follow(u.ScreenName)
-		// fmt.Println("FOLLOWED BY: ", u.ScreenName)
 	}
 
 	iveybot.OnMessage = func(b *leader1.Bot, m *leader1.DirectMessage) {
-		// if m.Sender.ScreenName == "ivey" {
-		// 	// // if tweet Foo
-		// 	// makeTweet(b, m.Text)
-		// 	b.Reply("HI THERE", m)
-		// } else {
+		words := strings.Fields(m.Text)
+		if m.Sender.ScreenName == "ivey" {
+			if words[0] == "tweet" {
+				if len(words) > 1 {
+					b.SendTweet(b.SeededRandomText(words[1]))
+				} else {
+					b.SendTweet(b.RandomText())
+				}
+				return
+			}
+		}
 		b.Reply(b.RandomText(), m)
-		// fmt.Println("I need to reply to ", m.Sender.ScreenName)
-		// }
 	}
 
 	iveybot.Start()

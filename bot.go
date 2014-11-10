@@ -99,7 +99,11 @@ func (b *Bot) TrainTweet(tweet Tweet) {
 }
 
 func (b *Bot) RandomText() string {
-	return b.Chain.Generate(20)
+	return b.Chain.Generate(20, "")
+}
+
+func (b *Bot) SeededRandomText(seed string) string {
+	return b.Chain.Generate(20, seed)
 }
 
 func (b *Bot) Start() {
@@ -208,6 +212,14 @@ func (b *Bot) Follow(username string) {
 }
 
 func (b *Bot) Reply(text string, m *DirectMessage) {
-	log.Print("Replying to DM")
+	log.Print("Replying to DM ", text)
 	b.API.PostDMToUserId(text, m.Sender.Id)
+}
+
+func (b *Bot) SendTweet(text string) {
+	log.Print("Sending tweet ", text)
+	_, err := b.API.PostTweet(text, nil)
+	if err != nil {
+		log.Print("WARN: sending tweet failed - ", err)
+	}
 }
