@@ -6,9 +6,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/ChimeraCoder/anaconda"
 	"github.com/garyburd/go-oauth/oauth"
 	"github.com/garyburd/twitterstream"
+	"github.com/ivey/anaconda"
 )
 
 type Bot struct {
@@ -42,8 +42,8 @@ type StreamEvent struct {
 	DirectMessage *anaconda.DirectMessage `json:"direct_message"`
 }
 
-func NewBot(consumerKey string, consumerSecret string, accessKey string, accessSecret string) *Bot {
-	bot := &Bot{}
+func NewBot(username string, consumerKey string, consumerSecret string, accessKey string, accessSecret string) *Bot {
+	bot := &Bot{Username: username}
 	bot.Consumer = &oauth.Credentials{Token: consumerKey, Secret: consumerSecret}
 	bot.Access = &oauth.Credentials{Token: accessKey, Secret: accessSecret}
 	return bot
@@ -102,6 +102,9 @@ func (b *Bot) Start() {
 				continue
 			}
 			if se.DirectMessage != nil {
+				if se.DirectMessage.Sender.ScreenName == b.Username {
+					continue
+				}
 				if b.OnMessage != nil {
 					b.OnMessage(b, &DirectMessage{se.DirectMessage})
 				}
@@ -137,4 +140,17 @@ func (b *Bot) Start() {
 		log.Print("WARNING!!! Unhandled object in stream: ", u)
 	}
 	log.Print(ts.Err)
+}
+
+func (b *Bot) Follow(username string) {
+	user, err := b.API.PostFriendshipsCreateToScreenName(username)
+	if err != nil {
+		log.Print("WARNING: couldn't follow ", username, ": ", err)
+	}
+	log.Print("FOLLOWED ", user)
+}
+
+func (b *Bot) Reply(text string, m *DirectMessage) {
+	log.Print("Replying to DM")
+	b.API.PostDMToUserId(text, m.Sender.Id)
 }
