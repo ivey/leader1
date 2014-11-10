@@ -15,7 +15,7 @@ func main() {
 		os.Getenv("OAUTH_TOKEN"),
 		os.Getenv("OAUTH_SECRET"))
 
-	// iveybot.Keywords = []string{"gamergate"} // keywords to search for
+	// iveybot.Keywords = []string{"rocksalt"} // keywords to search for
 
 	iveybot.OnStartup = func(b *leader1.Bot) {
 		fmt.Println("TODO: implement tweet storage")
