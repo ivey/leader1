@@ -22,7 +22,7 @@ func main() {
 	iveybot.Keywords = []string{"rocksalt"} // keywords to search for
 
 	iveybot.OnStartup = func(b *leader1.Bot) {
-		fmt.Println("TODO: implement a markov corpus load here")
+		b.TrainTweetCorpus("tweets/data/js/tweets")
 	}
 
 	iveybot.OnTweet = func(b *leader1.Bot, t *leader1.Tweet) {
@@ -35,13 +35,14 @@ func main() {
 	}
 
 	iveybot.OnMessage = func(b *leader1.Bot, m *leader1.DirectMessage) {
-		if m.Sender.ScreenName == "ivey" {
-			// // if tweet Foo
-			// makeTweet(b, m.Text)
-			b.Reply("HI THERE", m)
-		} else {
-			fmt.Println("I need to reply to ", m.Sender.ScreenName)
-		}
+		// if m.Sender.ScreenName == "ivey" {
+		// 	// // if tweet Foo
+		// 	// makeTweet(b, m.Text)
+		// 	b.Reply("HI THERE", m)
+		// } else {
+		b.Reply(b.RandomText(), m)
+		// fmt.Println("I need to reply to ", m.Sender.ScreenName)
+		// }
 	}
 
 	iveybot.Start()

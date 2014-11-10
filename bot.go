@@ -2,13 +2,17 @@ package leader1
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/url"
+	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/garyburd/go-oauth/oauth"
 	"github.com/garyburd/twitterstream"
 	"github.com/ivey/anaconda"
+	"github.com/ivey/leader1/markov"
 )
 
 type Bot struct {
@@ -21,6 +25,8 @@ type Bot struct {
 	OnFollow  func(*Bot, *User)
 	OnTweet   func(*Bot, *Tweet)
 	OnMessage func(*Bot, *DirectMessage)
+
+	Chain *markov.Chain
 }
 
 type Tweet struct {
@@ -46,7 +52,49 @@ func NewBot(username string, consumerKey string, consumerSecret string, accessKe
 	bot := &Bot{Username: username}
 	bot.Consumer = &oauth.Credentials{Token: consumerKey, Secret: consumerSecret}
 	bot.Access = &oauth.Credentials{Token: accessKey, Secret: accessSecret}
+	bot.Chain = markov.NewChain(1)
 	return bot
+}
+
+func (b *Bot) TrainTweetCorpus(dirname string) {
+	files, err := ioutil.ReadDir(dirname)
+	if err != nil {
+		log.Print("WARN: unable to read tweets dir: ", err)
+		return
+	}
+	for _, file := range files {
+		if file.IsDir() == false {
+			b.TrainTweetFile(filepath.Join(dirname, file.Name()))
+		}
+	}
+}
+
+func (b *Bot) TrainTweetFile(filename string) {
+	f, err := ioutil.ReadFile(filename)
+	if err != nil {
+		log.Print("WARN: unable to read tweets file: ", err)
+		return
+	}
+	re := regexp.MustCompile(".*\n")
+	repl := []byte("")
+	for _, v := range re.FindAllSubmatchIndex([]byte(f), 1) {
+		f = append(f[:v[0]], append(repl, f[v[1]:]...)...)
+	}
+
+	var ts []interface{}
+	err = json.Unmarshal(f, &ts)
+	if err != nil {
+		log.Print("ERROR LOADING TWEETS: ", filename, "\n", err)
+		return
+	}
+	for _, t := range ts {
+		tweet := t.(map[string]interface{})
+		b.Chain.AddString(tweet["text"].(string))
+	}
+}
+
+func (b *Bot) RandomText() string {
+	return b.Chain.Generate(20)
 }
 
 func (b *Bot) Start() {
@@ -125,6 +173,9 @@ func (b *Bot) Start() {
 		t := &anaconda.Tweet{}
 		err = json.Unmarshal(item, t)
 		if err == nil {
+			if t.User.ScreenName == b.Username {
+				b.Chain.AddString(t.Text)
+			}
 			if b.OnTweet != nil {
 				b.OnTweet(b, &Tweet{t})
 			}
