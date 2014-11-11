@@ -2,6 +2,7 @@ package leader1
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/url"
@@ -24,6 +25,7 @@ type Bot struct {
 	OnStartup func(*Bot)
 	OnFollow  func(*Bot, *User)
 	OnTweet   func(*Bot, *Tweet)
+	OnMention func(*Bot, *Tweet)
 	OnMessage func(*Bot, *DirectMessage)
 
 	Chain *markov.Chain
@@ -103,7 +105,11 @@ func (b *Bot) RandomText() string {
 }
 
 func (b *Bot) SeededRandomText(seed string) string {
-	return b.Chain.Generate(20, seed)
+	text := b.Chain.Generate(20, seed)
+	if text == "" {
+		return b.Chain.Generate(20, "")
+	}
+	return text
 }
 
 func (b *Bot) Start() {
@@ -159,7 +165,7 @@ func (b *Bot) Start() {
 				continue
 			}
 			if se.DirectMessage != nil {
-				if se.DirectMessage.Sender.ScreenName == b.Username {
+				if se.DirectMessage.Sender.ScreenName == b.Username { // ignore our side of conversations
 					continue
 				}
 				if b.OnMessage != nil {
@@ -183,11 +189,32 @@ func (b *Bot) Start() {
 		err = json.Unmarshal(item, t)
 		if err == nil {
 			tweet := &Tweet{t}
-			if t.User.ScreenName == b.Username {
+			if t.User.ScreenName == b.Username { // add our tweets to corpus and move on
 				b.Chain.AddString(tweet.Text)
+				continue
+			}
+
+			mentioned := false
+			for _, mention := range tweet.Entities.User_mentions {
+				if mention.Screen_name == b.Username { // Check for a mention
+					mentioned = true
+				}
+			}
+			if mentioned {
+				if tweet.RetweetedStatus != nil { // No RTs
+					mentioned = false
+				}
+				if tweet.Text[0:2] == "RT" { // Or manual RTs
+					mentioned = false
+				}
+			}
+			if mentioned && b.OnMention != nil {
+				b.OnMention(b, tweet)
+				continue
 			}
 			if b.OnTweet != nil {
 				b.OnTweet(b, tweet)
+				continue
 			}
 			continue
 		}
@@ -208,12 +235,26 @@ func (b *Bot) Follow(username string) {
 	if err != nil {
 		log.Print("WARNING: couldn't follow ", username, ": ", err)
 	}
-	log.Print("FOLLOWED ", user)
+	log.Print("FOLLOWED ", user.ScreenName)
 }
 
-func (b *Bot) Reply(text string, m *DirectMessage) {
+func (b *Bot) PrivateReply(text string, m *DirectMessage) {
 	log.Print("Replying to DM ", text)
-	b.API.PostDMToUserId(text, m.Sender.Id)
+	_, err := b.API.PostDMToUserId(text, m.Sender.Id)
+	if err != nil {
+		log.Print("WARN: sending tweet failed - ", err)
+	}
+}
+
+func (b *Bot) Reply(text string, t *Tweet) {
+	log.Print("Replying to tweet ", text)
+	text = fmt.Sprintf("@%s %s", t.User.ScreenName, text)
+	q := url.Values{}
+	q.Set("in_reply_to_status_id", t.IdStr)
+	_, err := b.API.PostTweet(text, q)
+	if err != nil {
+		log.Print("WARN: sending tweet failed - ", err)
+	}
 }
 
 func (b *Bot) SendTweet(text string) {
